@@ -1,67 +1,62 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
 
-import { db } from "@/server/db";
+import type {
+  DefaultSession,
+  NextAuthConfig,
+  Session as NextAuthSession,
+} from "next-auth";
+import type { Adapter } from "next-auth/adapters";
+import type { JWT } from "next-auth/jwt";
+import type { OAuthConfig } from "next-auth/providers";
+import Google from "next-auth/providers/google";
+import { db } from "../db";
 import {
   accounts,
+  authenticators,
   sessions,
   users,
   verificationTokens,
-} from "@/server/db/schema";
+} from "../db/schema";
+export type { Adapter, JWT, OAuthConfig };
 
-/**
- * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
- * object and keep type safety.
- *
- * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
- */
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
-      // ...other properties
-      // role: UserRole;
+      lastWorkspaceId?: string | null;
     } & DefaultSession["user"];
   }
-
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
 }
 
-/**
- * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
- *
- * @see https://next-auth.js.org/configuration/options
- */
+const adapter = DrizzleAdapter(db, {
+  usersTable: users,
+  accountsTable: accounts,
+  sessionsTable: sessions,
+  authenticatorsTable: authenticators,
+  verificationTokensTable: verificationTokens,
+});
+
 export const authConfig = {
-  providers: [
-    DiscordProvider,
-    /**
-     * ...add more providers here.
-     *
-     * Most other providers require a bit more work than the Discord provider. For example, the
-     * GitHub provider requires you to add the `refresh_token_expires_in` field to the Account
-     * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
-     *
-     * @see https://next-auth.js.org/providers/github
-     */
-  ],
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  adapter,
+  secret: process.env.AUTH_SECRET,
+  providers: [Google({ allowDangerousEmailAccountLinking: true })],
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-      },
-    }),
+    session: (opts) => {
+      if (!("user" in opts))
+        throw new Error("unreachable with session strategy");
+
+      return {
+        ...opts.session,
+        user: {
+          ...opts.session.user,
+          id: opts.user.id,
+        },
+      };
+    },
+  },
+  pages: {
+    signIn: "/login",
+    verifyRequest: "/login",
+    error: "/login",
   },
 } satisfies NextAuthConfig;

@@ -1,10 +1,22 @@
-/**
- * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
- * for Docker builds.
- */
+/** @type {import('next').NextConfig} */
 import "./src/env.js";
 
-/** @type {import("next").NextConfig} */
-const config = {};
+const nextConfig = {
+  reactStrictMode: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cnrib24ur3hk4b49.public.blob.vercel-storage.com",
+        port: "",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        port: "",
+      },
+    ],
+  },
+};
 
-export default config;
+export default nextConfig;
