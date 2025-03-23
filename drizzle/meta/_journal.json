@@ -8,6 +8,20 @@
       "when": 1742737947063,
       "tag": "0000_rainy_morbius",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1742744502918,
+      "tag": "0001_ambiguous_energizer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742753106817,
+      "tag": "0002_brown_big_bertha",
+      "breakpoints": true
     }
   ]
 }

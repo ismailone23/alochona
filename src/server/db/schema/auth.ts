@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
 import { pgTable, primaryKey } from "drizzle-orm/pg-core";
-import { chats, roomMember, rooms } from "./chat";
+import { invites, messages, roomMember, rooms, views } from "./chat";
 
 export const users = pgTable("user", (t) => ({
   id: t.uuid("id").notNull().primaryKey().defaultRandom(),
@@ -9,7 +9,7 @@ export const users = pgTable("user", (t) => ({
     .notNull()
     .defaultNow(),
   name: t.varchar("name", { length: 255 }),
-  email: t.varchar("email", { length: 255 }).notNull(),
+  email: t.varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: t.timestamp("email_verified", {
     mode: "date",
     withTimezone: true,
@@ -25,7 +25,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   authenticators: many(authenticators),
   rooms: many(rooms),
   memberof: many(roomMember),
-  chats: many(chats),
+  messages: many(messages),
+  view: many(views),
+  invitation: many(invites, { relationName: "invitor" }),
+  reciever: many(invites, { relationName: "reciever" }),
 }));
 
 export const accounts = pgTable(
