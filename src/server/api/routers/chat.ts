@@ -1,4 +1,4 @@
-import { optional, z } from "zod";
+import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
   invites,
@@ -6,7 +6,6 @@ import {
   roomMember,
   rooms,
   users,
-  type Room,
 } from "@/server/db/schema";
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -16,9 +15,18 @@ export const chatRouter = createTRPCRouter({
     const userId = ctx.session.user.id;
     return await ctx.db
       .select()
-      .from(roomMember)
-      .innerJoin(rooms, eq(rooms.id, roomMember.roomId))
-      .where(eq(roomMember.userId, userId));
+      .from(rooms)
+      .innerJoin(
+        roomMember,
+        and(eq(rooms.id, roomMember.roomId), eq(roomMember.userId, userId)),
+      );
+  }),
+  checkRoomInvite: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    return await ctx.db
+      .select()
+      .from(invites)
+      .where(eq(invites.invitedTo, userId));
   }),
   joinRoom: protectedProcedure
     .input(
@@ -36,22 +44,37 @@ export const chatRouter = createTRPCRouter({
         .select()
         .from(invites)
         .where(and(eq(invites.roomId, roomId), eq(invites.invitedTo, userId)));
+
       if (!invitation) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "failed to join room",
         });
       }
+
       const addMember = await ctx.db
         .insert(roomMember)
         .values({
-          userId: invitation.invitedTo,
-          roomId: invitation.roomId,
+          userId,
+          roomId,
           role,
         })
         .returning();
 
-      return { message: "room created." };
+      const [rinvitation] = await ctx.db
+        .delete(invites)
+        .where(and(eq(invites.roomId, roomId), eq(invites.invitedTo, userId)));
+
+      return { rinvitation, addMember };
+    }),
+  removeInvitation: protectedProcedure
+    .input(z.object({ roomId: z.string() }))
+    .mutation(async ({ ctx, input: { roomId } }) => {
+      const userId = ctx.session.user.id;
+      const [rinvitation] = await ctx.db
+        .delete(invites)
+        .where(and(eq(invites.roomId, roomId), eq(invites.invitedTo, userId)));
+      return rinvitation;
     }),
   deleteRoom: protectedProcedure
     .input(z.object({ roomId: z.string() }))
@@ -81,7 +104,7 @@ export const chatRouter = createTRPCRouter({
         .delete(messages)
         .where(eq(messages.roomId, roomId));
 
-      return { message: "room deleted" };
+      return { deleteRoom, deleteRoomMember, deleteMessages };
     }),
   updateRoom: protectedProcedure
     .input(
@@ -107,10 +130,12 @@ export const chatRouter = createTRPCRouter({
           message: "you don't have rights to perform this action",
         });
       }
-      const updateRoom = await ctx.db.update(rooms).set({ rImage, rName });
-      return { message: "room updated" };
+      return await ctx.db
+        .update(rooms)
+        .set({ rImage, rName })
+        .where(and(eq(rooms.id, roomId)));
     }),
-  inviteMembers: protectedProcedure
+  createRoom: protectedProcedure
     .input(
       z.object({
         memberEmail: z.string().email(),
@@ -144,11 +169,10 @@ export const chatRouter = createTRPCRouter({
         });
       }
 
-      const inviteMember = await ctx.db
+      return await ctx.db
         .insert(invites)
         .values({ invitedBy: userId, invitedTo: user.id, roomId: newRoom.id })
         .returning();
-      return { message: "member invited" };
     }),
   removeMember: protectedProcedure
     .input(z.object({ memberId: z.string(), roomId: z.string() }))
@@ -178,7 +202,7 @@ export const chatRouter = createTRPCRouter({
           message: "you do not have rights to perform this state",
         });
       }
-      await ctx.db
+      return await ctx.db
         .delete(roomMember)
         .where(
           and(
@@ -187,7 +211,32 @@ export const chatRouter = createTRPCRouter({
             eq(roomMember.userId, memberId),
           ),
         );
-      return { message: "member removed" };
+    }),
+  inviteMembers: protectedProcedure
+    .input(
+      z.object({
+        memberEmail: z.string().email(),
+        roomId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input: { roomId, memberEmail } }) => {
+      const userId = ctx.session.user.id;
+      const [user] = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.email, memberEmail));
+
+      if (!user) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "user not found with the email",
+        });
+      }
+
+      return await ctx.db
+        .insert(invites)
+        .values({ invitedBy: userId, invitedTo: user.id, roomId })
+        .returning();
     }),
   leaveRoom: protectedProcedure
     .input(z.object({ roomId: z.string() }))
@@ -211,7 +260,7 @@ export const chatRouter = createTRPCRouter({
           message: "plesase transfer the ownership first to leave",
         });
       }
-      await ctx.db
+      return await ctx.db
         .delete(roomMember)
         .where(
           and(
@@ -220,7 +269,6 @@ export const chatRouter = createTRPCRouter({
             eq(roomMember.userId, userId),
           ),
         );
-      return { message: "member removed" };
     }),
   getMessages: protectedProcedure
     .input(z.object({ roomId: z.string() }))
@@ -263,7 +311,7 @@ export const chatRouter = createTRPCRouter({
           message: "failed to send message",
         });
       }
-      return { message: "message sent" };
+      return newMessage;
     }),
   deleteMessage: protectedProcedure
     .input(z.object({ roomId: z.string(), messageId: z.string() }))
@@ -285,7 +333,7 @@ export const chatRouter = createTRPCRouter({
           message: "failed to delete message",
         });
       }
-      await ctx.db
+      return await ctx.db
         .delete(messages)
         .where(
           and(
@@ -294,7 +342,6 @@ export const chatRouter = createTRPCRouter({
             eq(messages.roomId, roomId),
           ),
         );
-      return { message: "message deleted" };
     }),
   updateMessage: protectedProcedure
     .input(
@@ -319,7 +366,7 @@ export const chatRouter = createTRPCRouter({
           message: "failed to delete message",
         });
       }
-      await ctx.db
+      return await ctx.db
         .update(messages)
         .set({ text })
         .where(
@@ -330,6 +377,5 @@ export const chatRouter = createTRPCRouter({
             eq(messages.roomId, roomId),
           ),
         );
-      return { message: "message updated" };
     }),
 });
