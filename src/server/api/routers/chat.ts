@@ -508,6 +508,10 @@ export const chatRouter = createTRPCRouter({
           message: "you don't have rights to perform this action",
         });
       }
+      const [user] = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
       const [newMessage] = await ctx.db
         .insert(messages)
         .values({ roomId, userId, text, type })
@@ -523,7 +527,7 @@ export const chatRouter = createTRPCRouter({
           message: "failed to send message",
         });
       }
-      return newMessage;
+      return { message: newMessage, user };
     }),
   deleteMessage: protectedProcedure
     .input(z.object({ roomId: z.string(), messageId: z.string() }))
