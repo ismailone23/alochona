@@ -58,6 +58,9 @@ export const roomMember = pgTable(
     }),
   ],
 );
+
+export type RoomMember = typeof roomMember.$inferSelect;
+
 export const roomMemberRelations = relations(roomMember, ({ one }) => ({
   room: one(rooms, {
     fields: [roomMember.roomId],
@@ -145,28 +148,72 @@ export const messageRelations = relations(messages, ({ one, many }) => ({
   view: many(views),
 }));
 
-export const views = pgTable("view", (t) => ({
-  userId: t
-    .uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  roomId: t
-    .uuid("room_id")
-    .references(() => rooms.id)
-    .notNull(),
-  messagesId: t
-    .uuid("message_id")
-    .references(() => messages.id)
-    .notNull(),
-}));
+export const views = pgTable(
+  "view",
+  (t) => ({
+    userId: t
+      .uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    roomId: t
+      .uuid("room_id")
+      .references(() => rooms.id)
+      .notNull(),
+    messagesId: t
+      .uuid("message_id")
+      .references(() => messages.id)
+      .notNull(),
+  }),
+  (table) => [
+    primaryKey({ columns: [table.messagesId, table.roomId, table.userId] }),
+  ],
+);
 export const viewsRelation = relations(views, ({ one, many }) => ({
   room: one(rooms, {
     fields: [views.roomId],
     references: [rooms.id],
   }),
   user: one(users, {
-    fields: [views.roomId],
+    fields: [views.userId],
     references: [users.id],
   }),
-  message: many(messages),
+  message: one(messages, {
+    fields: [views.messagesId],
+    references: [messages.id],
+  }),
+}));
+
+export const connections = pgTable("connection", (t) => ({
+  id: t.uuid("id").defaultRandom().primaryKey().notNull(),
+  currentuserId: t
+    .uuid("currentuser_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  connectedUserId: t
+    .uuid("connected_user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  isAccepted: t.boolean("is_accepted").notNull().default(false),
+  createdAt: t
+    .timestamp("created_at", { mode: "date", withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: t
+    .timestamp("updated_at", { mode: "date", withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}));
+export type Connection = typeof connections.$inferSelect;
+
+export const connnectionRelation = relations(connections, ({ one, many }) => ({
+  currentuser: one(users, {
+    fields: [connections.currentuserId],
+    references: [users.id],
+    relationName: "currentuser",
+  }),
+  connecteduser: one(users, {
+    fields: [connections.connectedUserId],
+    references: [users.id],
+    relationName: "connecteduser",
+  }),
 }));

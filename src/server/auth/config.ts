@@ -9,7 +9,6 @@ import type { Adapter } from "next-auth/adapters";
 import type { JWT } from "next-auth/jwt";
 import type { OAuthConfig } from "next-auth/providers";
 import Google from "next-auth/providers/google";
-import { db } from "../db";
 import {
   accounts,
   authenticators,
@@ -17,13 +16,13 @@ import {
   users,
   verificationTokens,
 } from "../db/schema";
+import { db } from "../db";
 export type { Adapter, JWT, OAuthConfig };
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      lastWorkspaceId?: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -35,6 +34,8 @@ const adapter = DrizzleAdapter(db, {
   authenticatorsTable: authenticators,
   verificationTokensTable: verificationTokens,
 });
+
+export const isSecureContext = process.env.NODE_ENV !== "development";
 
 export const authConfig = {
   adapter,
@@ -60,3 +61,23 @@ export const authConfig = {
     error: "/login",
   },
 } satisfies NextAuthConfig;
+
+export const validateToken = async (
+  token: string,
+): Promise<NextAuthSession | null> => {
+  const sessionToken = token.slice("Bearer ".length);
+  const session = await adapter.getSessionAndUser?.(sessionToken);
+  return session
+    ? {
+        user: {
+          ...session.user,
+        },
+        expires: session.session.expires.toISOString(),
+      }
+    : null;
+};
+
+export const invalidateSessionToken = async (token: string) => {
+  const sessionToken = token.slice("Bearer ".length);
+  await adapter.deleteSession?.(sessionToken);
+};

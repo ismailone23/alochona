@@ -1,6 +1,13 @@
 import { relations } from "drizzle-orm";
 import { pgTable, primaryKey } from "drizzle-orm/pg-core";
-import { invites, messages, roomMember, rooms, views } from "./chat";
+import {
+  connections,
+  invites,
+  messages,
+  roomMember,
+  rooms,
+  views,
+} from "./chat";
 
 export const users = pgTable("user", (t) => ({
   id: t.uuid("id").notNull().primaryKey().defaultRandom(),
@@ -29,6 +36,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   view: many(views),
   invitation: many(invites, { relationName: "invitor" }),
   reciever: many(invites, { relationName: "reciever" }),
+  currentuser: many(connections, { relationName: "currentuser" }),
+  connecteduser: many(connections, { relationName: "connecteduser" }),
 }));
 
 export const accounts = pgTable(

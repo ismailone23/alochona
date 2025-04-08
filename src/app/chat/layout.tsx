@@ -1,6 +1,11 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { type Metadata } from "next";
 import { AppSidebar } from "@/app/_components/app-sidebar";
+import { HydrateClient } from "@/trpc/server";
+import { auth } from "@/server/auth";
+import { redirect } from "next/navigation";
+import { Toaster } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Alochona - Chats",
@@ -9,16 +14,26 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-export default function MessageLayout({
+export default async function MessageLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await auth();
+
+  if (!user || !user.user) {
+    return redirect("/login");
+  }
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main>
-        <SidebarTrigger />
-        {children}
-      </main>
-    </SidebarProvider>
+    <HydrateClient>
+      <SidebarProvider>
+        <AppSidebar />
+        <main className="flex h-screen w-full flex-col overflow-hidden">
+          <SidebarTrigger className="shrink-0" />
+          <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
+            {children}
+          </div>
+          <Toaster />
+        </main>
+      </SidebarProvider>
+    </HydrateClient>
   );
 }

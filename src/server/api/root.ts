@@ -1,12 +1,25 @@
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+import { authRouter } from "./routers/auth";
+import { chatRouter } from "./routers/chat";
 
-import { createCallerFactory, createTRPCContext } from "./trpc";
-import { appRouter, type AppRouter } from ".";
+/**
+ * This is the primary router for your server.
+ *
+ * All routers added in /api/routers should be manually added here.
+ */
+export const appRouter = createTRPCRouter({
+  auth: authRouter,
+  chat: chatRouter,
+});
 
-const createCaller = createCallerFactory(appRouter);
+// export type definition of API
+export type AppRouter = typeof appRouter;
 
-type RouterInputs = inferRouterInputs<AppRouter>;
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-export { createCaller, createTRPCContext };
-export type { RouterInputs, RouterOutputs };
+/**
+ * Create a server-side caller for the tRPC API.
+ * @example
+ * const trpc = createCaller(createContext);
+ * const res = await trpc.post.all();
+ *       ^? Post[]
+ */
+export const createCaller = createCallerFactory(appRouter);

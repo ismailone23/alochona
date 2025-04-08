@@ -1,5 +1,9 @@
-import React from "react";
+"use client";
 
-export default function page() {
-  return <div></div>;
+export default function Home() {
+  return (
+    <>
+      <p>page</p>
+    </>
+  );
 }

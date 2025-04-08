@@ -1,26 +1,185 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
+  connections,
   invites,
   messages,
   roomMember,
   rooms,
   users,
+  type Room,
+  type RoomMember,
 } from "@/server/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull, lt, not, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const chatRouter = createTRPCRouter({
   getAllRooms: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
-    return await ctx.db
+
+    const cUserRooms = await ctx.db
       .select()
       .from(rooms)
       .innerJoin(
         roomMember,
-        and(eq(rooms.id, roomMember.roomId), eq(roomMember.userId, userId)),
-      );
+        and(eq(roomMember.userId, userId), eq(roomMember.roomId, rooms.id)),
+      )
+      .orderBy(desc(rooms.updatedAt));
+    const refinedRooms: Room[] = [];
+    for (let i = 0; i < cUserRooms.length; i++) {
+      const croom = cUserRooms[i];
+      if (croom && !refinedRooms.includes(croom.room)) {
+        if (croom.room.rType === "ptp") {
+          const [roomName] = await ctx.db
+            .select()
+            .from(roomMember)
+            .where(
+              and(
+                eq(roomMember.roomId, croom.room.id),
+                not(eq(roomMember.userId, userId)),
+              ),
+            )
+            .innerJoin(users, eq(users.id, roomMember.userId));
+          croom.room.rName = roomName?.user.name ?? croom.room.rName;
+          croom.room.rImage = roomName?.user.image ?? croom.room.rImage;
+        }
+        refinedRooms.push(croom.room);
+      }
+    }
+    return refinedRooms;
   }),
+  checkConnections: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    return await ctx.db
+      .select()
+      .from(connections)
+      .where(
+        and(
+          eq(connections.isAccepted, false),
+          eq(connections.connectedUserId, userId),
+        ),
+      )
+      .innerJoin(users, eq(users.id, connections.currentuserId));
+  }),
+  acceptConnections: protectedProcedure
+    .input(z.object({ cid: z.string() }))
+    .mutation(async ({ ctx, input: { cid } }) => {
+      const userId = ctx.session.user.id;
+
+      const [invitation] = await ctx.db
+        .select()
+        .from(connections)
+        .where(
+          and(
+            eq(connections.isAccepted, false),
+            eq(connections.connectedUserId, userId),
+          ),
+        );
+      if (!invitation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "connection invitation not found",
+        });
+      }
+
+      const [newRoom] = await ctx.db
+        .insert(rooms)
+        .values({
+          adminUserId: invitation.currentuserId,
+          rName: invitation.currentuserId,
+          rType: "ptp",
+        })
+        .returning();
+      if (!newRoom) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
+      const addMember = await ctx.db
+        .insert(roomMember)
+        .values([
+          {
+            userId: invitation.currentuserId,
+            roomId: newRoom.id,
+            role: "creator",
+          },
+          {
+            userId: invitation.connectedUserId,
+            roomId: newRoom.id,
+            role: "creator",
+          },
+        ])
+        .returning();
+
+      return await ctx.db
+        .update(connections)
+        .set({ isAccepted: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(connections.connectedUserId, userId),
+            eq(connections.currentuserId, cid),
+          ),
+        );
+    }),
+  sendConnection: protectedProcedure
+    .input(
+      z.object({
+        connectedUser: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input: { connectedUser } }) => {
+      const userId = ctx.session.user.id;
+
+      const [connectionr] = await ctx.db
+        .select()
+        .from(connections)
+        .where(
+          or(
+            and(
+              eq(connections.connectedUserId, userId),
+              eq(connections.currentuserId, connectedUser),
+            ),
+            and(
+              eq(connections.currentuserId, userId),
+              eq(connections.connectedUserId, connectedUser),
+            ),
+          ),
+        );
+
+      if (connectionr) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "connection request already sent or already connected",
+        });
+      }
+
+      return await ctx.db
+        .insert(connections)
+        .values({ connectedUserId: connectedUser, currentuserId: userId })
+        .returning();
+    }),
+  removeConnection: protectedProcedure
+    .input(
+      z.object({
+        connectedUser: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input: { connectedUser } }) => {
+      const userId = ctx.session.user.id;
+
+      return await ctx.db
+        .delete(connections)
+        .where(
+          or(
+            and(
+              eq(connections.connectedUserId, userId),
+              eq(connections.currentuserId, connectedUser),
+            ),
+            and(
+              eq(connections.currentuserId, userId),
+              eq(connections.connectedUserId, connectedUser),
+            ),
+          ),
+        );
+    }),
   checkRoomInvite: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
     return await ctx.db
@@ -66,6 +225,30 @@ export const chatRouter = createTRPCRouter({
         .where(and(eq(invites.roomId, roomId), eq(invites.invitedTo, userId)));
 
       return { rinvitation, addMember };
+    }),
+  searchMember: protectedProcedure
+    .input(z.object({ query: z.string().optional() }))
+    .query(async ({ ctx, input: { query } }) => {
+      const userId = ctx.session.user.id;
+
+      const members = await ctx.db
+        .select()
+        .from(users)
+        .where(
+          and(
+            not(eq(users.id, userId)),
+            or(
+              ilike(users.email, `%${query}%`),
+              ilike(users.name, `%${query}%`),
+            ),
+          ),
+        )
+        .limit(5);
+
+      if (!query) {
+        return [];
+      }
+      return members;
     }),
   removeInvitation: protectedProcedure
     .input(z.object({ roomId: z.string() }))
@@ -271,14 +454,39 @@ export const chatRouter = createTRPCRouter({
         );
     }),
   getMessages: protectedProcedure
-    .input(z.object({ roomId: z.string() }))
-    .query(async ({ ctx, input: { roomId } }) => {
+    .input(
+      z.object({
+        roomId: z.string(),
+        limit: z.number().min(1).max(100).default(10),
+        cursor: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input: { roomId, cursor, limit } }) => {
       const chats = await ctx.db
-        .select()
+        .select({
+          message: messages,
+          user: users,
+        })
         .from(messages)
-        .where(eq(messages.roomId, roomId))
-        .innerJoin(users, eq(users.id, messages.id));
-      return chats;
+        .where(
+          and(
+            eq(messages.roomId, roomId),
+            cursor ? lt(messages.createdAt, new Date(cursor)) : undefined,
+          ),
+        )
+        .innerJoin(users, eq(users.id, messages.userId))
+        .orderBy(desc(messages.createdAt))
+        .limit(limit + 1);
+      let nextCursor: string | null = null;
+      if (chats.length > limit) {
+        const nextItem = chats.pop();
+        nextCursor = nextItem?.message.createdAt.toISOString() ?? null;
+      }
+
+      return {
+        items: chats,
+        nextCursor,
+      };
     }),
   sendMessage: protectedProcedure
     .input(
@@ -288,7 +496,7 @@ export const chatRouter = createTRPCRouter({
         type: z.enum(["image", "video", "text"]),
       }),
     )
-    .query(async ({ ctx, input: { roomId, text, type } }) => {
+    .mutation(async ({ ctx, input: { roomId, text, type } }) => {
       const userId = ctx.session.user.id;
       const [isMember] = await ctx.db
         .select()
@@ -304,6 +512,10 @@ export const chatRouter = createTRPCRouter({
         .insert(messages)
         .values({ roomId, userId, text, type })
         .returning();
+      const [updateRoom] = await ctx.db
+        .update(rooms)
+        .set({ updatedAt: new Date() })
+        .where(eq(rooms.id, roomId));
 
       if (!newMessage) {
         throw new TRPCError({
