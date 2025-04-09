@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1742806814327,
-      "tag": "0000_high_maria_hill",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1742834932656,
-      "tag": "0001_new_raider",
+      "when": 1744213985526,
+      "tag": "0000_parallel_vance_astro",
       "breakpoints": true
     }
   ]

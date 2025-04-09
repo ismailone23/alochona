@@ -1,5 +1,5 @@
 {
-  "id": "d9ba3242-7ec6-4139-8d6a-105995454478",
+  "id": "b302f71d-a50d-405b-9631-e462f9da51fd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -345,6 +345,86 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.connection": {
+      "name": "connection",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "currentuser_id": {
+          "name": "currentuser_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "connected_user_id": {
+          "name": "connected_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_accepted": {
+          "name": "is_accepted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "connection_currentuser_id_user_id_fk": {
+          "name": "connection_currentuser_id_user_id_fk",
+          "tableFrom": "connection",
+          "tableTo": "user",
+          "columnsFrom": [
+            "currentuser_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "connection_connected_user_id_user_id_fk": {
+          "name": "connection_connected_user_id_user_id_fk",
+          "tableFrom": "connection",
+          "tableTo": "user",
+          "columnsFrom": [
+            "connected_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

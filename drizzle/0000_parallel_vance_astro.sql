@@ -51,6 +51,15 @@ CREATE TABLE "verification_tokens" (
 	"expires" timestamp NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "connection" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"currentuser_id" uuid NOT NULL,
+	"connected_user_id" uuid NOT NULL,
+	"is_accepted" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "invite" (
 	"room_id" uuid,
 	"invited_by" uuid,
@@ -97,6 +106,8 @@ CREATE TABLE "view" (
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "authenticators" ADD CONSTRAINT "authenticators_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "connection" ADD CONSTRAINT "connection_currentuser_id_user_id_fk" FOREIGN KEY ("currentuser_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "connection" ADD CONSTRAINT "connection_connected_user_id_user_id_fk" FOREIGN KEY ("connected_user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invite" ADD CONSTRAINT "invite_room_id_room_id_fk" FOREIGN KEY ("room_id") REFERENCES "public"."room"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invite" ADD CONSTRAINT "invite_invited_by_user_id_fk" FOREIGN KEY ("invited_by") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invite" ADD CONSTRAINT "invite_invited_to_user_id_fk" FOREIGN KEY ("invited_to") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
