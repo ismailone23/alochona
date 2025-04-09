@@ -3,9 +3,11 @@
 import { MessageForm } from "@/app/_components/send-message";
 import { api } from "@/trpc/react";
 import { useParams } from "next/navigation";
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import Chats from "@/app/_components/chats";
 import { useSocket, type receiveMessageData } from "@/context/socket-provider";
+import { CommandItem } from "@/components/ui/command";
+import { ChevronDown } from "lucide-react";
 
 export default function PageClient() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -36,18 +38,18 @@ export default function PageClient() {
     }
   }, [data?.pages.length]);
 
-  useEffect(() => {
-    if (!hasNextPage || !topRef.current) return;
+  // useEffect(() => {
+  //   if (!hasNextPage || !topRef.current) return;
+  //   const observer = new IntersectionObserver(async ([entry]) => {
+  //     if (entry?.isIntersecting) {
+  //       // eslint-disable-next-line no-use-before-define
+  //       await fetchNextPage();
+  //     }
+  //   });
 
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry && entry.isIntersecting) {
-        fetchNextPage();
-      }
-    });
-
-    observer.observe(topRef.current);
-    return () => observer.disconnect();
-  }, [hasNextPage, fetchNextPage]);
+  //   observer.observe(topRef.current);
+  //   return () => observer.disconnect();
+  // }, [hasNextPage, fetchNextPage]);
 
   const [messages, setMessages] = useState<receiveMessageData[]>([]);
 
@@ -102,6 +104,18 @@ export default function PageClient() {
                   <Chats message={message} user={user} key={i} />
                 ))}
                 <div ref={topRef} />
+                {hasNextPage && (
+                  <CommandItem
+                    value="load-more"
+                    onSelect={() => {
+                      void fetchNextPage();
+                    }}
+                    className="justify-center text-center"
+                    disabled={isFetchingNextPage}
+                  >
+                    Load More <ChevronDown className="ml-2 h-4 w-4" />
+                  </CommandItem>
+                )}
                 {isFetchingNextPage && (
                   <p className="text-center text-xs text-gray-400">
                     Loading more...

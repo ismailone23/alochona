@@ -62,7 +62,7 @@ export default function InvitationTab() {
             className="flex w-full items-center justify-between gap-2 rounded p-2 hover:bg-gray-100"
           >
             <Avatar>
-              <AvatarImage src={user.image as string} />
+              {user?.image && <AvatarImage src={user.image} />}
               <AvatarFallback>CN</AvatarFallback>
             </Avatar>
             <div className="flex w-full flex-col justify-between">

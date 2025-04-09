@@ -168,7 +168,7 @@ export const views = pgTable(
     primaryKey({ columns: [table.messagesId, table.roomId, table.userId] }),
   ],
 );
-export const viewsRelation = relations(views, ({ one, many }) => ({
+export const viewsRelation = relations(views, ({ one }) => ({
   room: one(rooms, {
     fields: [views.roomId],
     references: [rooms.id],
@@ -205,7 +205,7 @@ export const connections = pgTable("connection", (t) => ({
 }));
 export type Connection = typeof connections.$inferSelect;
 
-export const connnectionRelation = relations(connections, ({ one, many }) => ({
+export const connnectionRelation = relations(connections, ({ one }) => ({
   currentuser: one(users, {
     fields: [connections.currentuserId],
     references: [users.id],

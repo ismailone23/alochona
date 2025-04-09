@@ -21,9 +21,8 @@ export const roomsRouter = createTRPCRouter({
         and(eq(roomMember.userId, userId), eq(roomMember.roomId, rooms.id)),
       );
     const refinedRooms: Room[] = [];
-    for (let i = 0; i < cUserRooms.length; i++) {
-      const croom = cUserRooms[i];
-      if (croom && !refinedRooms.includes(croom.room)) {
+    for (const croom of cUserRooms) {
+      if (!refinedRooms.includes(croom.room)) {
         if (croom.room.rType === "ptp") {
           const [roomName] = await ctx.db
             .select()
@@ -41,6 +40,7 @@ export const roomsRouter = createTRPCRouter({
         refinedRooms.push(croom.room);
       }
     }
+
     return refinedRooms;
   }),
   sendConnection: protectedProcedure

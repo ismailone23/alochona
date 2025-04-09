@@ -13,7 +13,7 @@ export default function Chats({
   return (
     <div className="mb-2 flex w-full items-start">
       <Avatar>
-        <AvatarImage src={user.image as string} />
+        {user?.image && <AvatarImage src={user.image} />}
         <AvatarFallback>{user.name?.charAt(0) ?? "U"}</AvatarFallback>
       </Avatar>
       <div className="ml-2 w-auto rounded bg-gray-100 p-2 text-gray-800">

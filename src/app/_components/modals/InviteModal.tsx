@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/trpc/react";
 import { Plus } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useDebounceValue } from "usehooks-ts";
 import { toast } from "@/components/ui/sonner";
 
@@ -113,7 +113,7 @@ const UserCard: React.FC<UserCardProps> = ({
   return (
     <div className="flex w-full items-center justify-between gap-2 rounded p-2 hover:bg-gray-100">
       <Avatar>
-        <AvatarImage src={image as string} />
+        {image && <AvatarImage src={image} />}
         <AvatarFallback>CN</AvatarFallback>
       </Avatar>
       <div className="flex w-full justify-between">

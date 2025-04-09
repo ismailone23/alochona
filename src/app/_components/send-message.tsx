@@ -67,10 +67,10 @@ export function MessageForm() {
     form.reset();
   }
 
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKey = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      form.handleSubmit(onSubmit)(); // manually trigger submit
+      await form.handleSubmit(onSubmit)(); // manually trigger submit
     }
   };
 

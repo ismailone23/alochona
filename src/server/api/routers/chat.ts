@@ -8,9 +8,8 @@ import {
   rooms,
   users,
   type Room,
-  type RoomMember,
 } from "@/server/db/schema";
-import { and, asc, desc, eq, ilike, isNull, lt, not, or } from "drizzle-orm";
+import { and, desc, eq, ilike, lt, not, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const chatRouter = createTRPCRouter({
@@ -26,9 +25,8 @@ export const chatRouter = createTRPCRouter({
       )
       .orderBy(desc(rooms.updatedAt));
     const refinedRooms: Room[] = [];
-    for (let i = 0; i < cUserRooms.length; i++) {
-      const croom = cUserRooms[i];
-      if (croom && !refinedRooms.includes(croom.room)) {
+    for (const croom of cUserRooms) {
+      if (!refinedRooms.includes(croom.room)) {
         if (croom.room.rType === "ptp") {
           const [roomName] = await ctx.db
             .select()
@@ -93,7 +91,7 @@ export const chatRouter = createTRPCRouter({
       if (!newRoom) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
-      const addMember = await ctx.db
+      await ctx.db
         .insert(roomMember)
         .values([
           {
@@ -516,7 +514,7 @@ export const chatRouter = createTRPCRouter({
         .insert(messages)
         .values({ roomId, userId, text, type })
         .returning();
-      const [updateRoom] = await ctx.db
+      await ctx.db
         .update(rooms)
         .set({ updatedAt: new Date() })
         .where(eq(rooms.id, roomId));

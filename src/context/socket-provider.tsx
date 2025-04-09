@@ -2,7 +2,7 @@
 import { env } from "@/env";
 import type { Message, User } from "@/server/db/schema";
 import { createContext, useContext, useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { io, type Socket } from "socket.io-client";
 
 export type sendMessageData = {
   roomId: string;

@@ -5,7 +5,6 @@ import { HydrateClient } from "@/trpc/server";
 import { auth } from "@/server/auth";
 import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Alochona - Chats",
