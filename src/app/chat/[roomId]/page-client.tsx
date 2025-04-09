@@ -3,15 +3,15 @@
 import { MessageForm } from "@/app/_components/send-message";
 import { api } from "@/trpc/react";
 import { useParams } from "next/navigation";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import Chats from "@/app/_components/chats";
-// import { socket } from "@/lib/socket";
+import { useSocket, type receiveMessageData } from "@/context/socket-provider";
 
 export default function PageClient() {
   const { roomId } = useParams<{ roomId: string }>();
   const topRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
+  const socket = useSocket();
   const {
     data,
     fetchNextPage,
@@ -29,7 +29,6 @@ export default function PageClient() {
   );
   const hasAutoScrolled = useRef(false);
 
-  // Scroll to bottom on first load
   useEffect(() => {
     if (!hasAutoScrolled.current && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
@@ -37,7 +36,6 @@ export default function PageClient() {
     }
   }, [data?.pages.length]);
 
-  // Observe topRef to load older messages when scrolled up
   useEffect(() => {
     if (!hasNextPage || !topRef.current) return;
 
@@ -51,21 +49,36 @@ export default function PageClient() {
     return () => observer.disconnect();
   }, [hasNextPage, fetchNextPage]);
 
-  const messages = data?.pages.flatMap((page) => page.items) ?? [];
+  const [messages, setMessages] = useState<receiveMessageData[]>([]);
 
-  // useEffect(() => {
-  //   function socketev(roomId: string, message: any) {
-  //     console.log({ roomId, message });
-  //   }
-  //   if (!roomId) return;
-  //   socket.connect();
-  //   // socket.emit("join-room", roomId);
-  //   socket.on("send-message", socketev);
+  useEffect(() => {
+    if (data) {
+      setMessages(data.pages.flatMap((page) => page.items) ?? []);
+    }
+  }, [data]);
+  const handleReceiveMessage = (newMessage: receiveMessageData) => {
+    if (!newMessage.message || !newMessage.user) {
+      console.error("Invalid message format", newMessage);
+      return;
+    }
+    setMessages((prev) => {
+      if (prev.some((msg) => msg.message.id === newMessage.message.id)) {
+        return prev;
+      }
+      return [newMessage, ...prev];
+    });
+  };
+  useEffect(() => {
+    if (!roomId || !socket) return;
+    socket.connect();
+    socket.emit("join_room", roomId);
+    socket.on("receive_message", handleReceiveMessage);
 
-  //   return () => {
-  //     socket.off("send-message", socketev);
-  //   };
-  // });
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.disconnect();
+    };
+  }, [roomId, socket]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden pr-6">

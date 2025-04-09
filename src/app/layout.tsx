@@ -6,6 +6,7 @@ import { Geist } from "next/font/google";
 import { TRPCReactProvider } from "@/trpc/react";
 import AuthProvider from "@/context/auth-provider";
 import { SessionProvider } from "next-auth/react";
+import { SocketProvider } from "@/context/socket-provider";
 
 export const metadata: Metadata = {
   title: "Alochona | Home",
@@ -26,7 +27,9 @@ export default async function RootLayout({
       <body>
         <SessionProvider>
           <AuthProvider>
-            <TRPCReactProvider>{children}</TRPCReactProvider>
+            <TRPCReactProvider>
+              <SocketProvider>{children}</SocketProvider>
+            </TRPCReactProvider>
           </AuthProvider>
         </SessionProvider>
       </body>

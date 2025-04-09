@@ -16,8 +16,7 @@ import { SendIcon } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useParams } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
-import { socket } from "@/lib/socket";
-import { useSession } from "next-auth/react";
+import { useSocket } from "@/context/socket-provider";
 
 const FormSchema = z.object({
   message: z.string().min(2, {
@@ -26,9 +25,9 @@ const FormSchema = z.object({
 });
 
 export function MessageForm() {
+  const socket = useSocket();
   const { roomId } = useParams<{ roomId: string }>();
   const apictx = api.useContext();
-  const { data } = useSession();
   const sendMessageApi = api.chat.sendMessage.useMutation({
     onMutate: () => {
       const toastId = toast.loading("Sending message...");
@@ -46,21 +45,13 @@ export function MessageForm() {
       toast.success("Message sent.", { id: ctx.toastId });
 
       // Emit message through Socket.IO to update other clients
-      // if (roomId) {
-      //   socket.connect();
-      //   socket.emit("join-room", roomId);
-      //   socket.emit("send-message", {
-      //     roomId,
-      //     message: {
-      //       message: {
-      //         ..._data.message,
-      //       },
-      //       user: {
-      //         ..._data?.user,
-      //       },
-      //     },
-      //   });
-      // }
+      if (roomId && socket && _data.user) {
+        socket.emit("send_message", {
+          roomId,
+          message: _data.message,
+          user: _data.user,
+        });
+      }
     },
   });
 

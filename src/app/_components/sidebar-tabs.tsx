@@ -1,6 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DisplayRooms from "./display-rooms";
-import { SidebarMenu } from "@/components/ui/sidebar";
 import InvitationTab from "./invitation-tab";
 
 export default function SidebarTabs() {
