@@ -46,7 +46,7 @@ export function MessageForm() {
 
       // Emit message through Socket.IO to update other clients
       if (roomId && socket && _data.user) {
-        await socket.connect();
+        socket.connect();
         socket.emit("send_message", {
           roomId,
           message: _data.message,
