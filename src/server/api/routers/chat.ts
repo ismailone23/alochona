@@ -13,6 +13,20 @@ import { and, desc, eq, ilike, lt, not, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const chatRouter = createTRPCRouter({
+  getRoomData: protectedProcedure
+    .input(z.object({ roomId: z.string() }))
+    .query(async ({ ctx, input: { roomId } }) => {
+      const userId = ctx.session.user.id;
+      const [roomwithData] = await ctx.db
+        .select()
+        .from(roomMember)
+        .where(
+          and(eq(roomMember.roomId, roomId), eq(roomMember.userId, userId)),
+        )
+        .innerJoin(rooms, eq(roomMember.roomId, roomId));
+
+      return roomwithData;
+    }),
   getAllRooms: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
 
@@ -46,7 +60,7 @@ export const chatRouter = createTRPCRouter({
     }
     return refinedRooms;
   }),
-  checkConnections: protectedProcedure.query(async ({ ctx }) => {
+  getConnectionSend: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
     return await ctx.db
       .select()
@@ -54,10 +68,36 @@ export const chatRouter = createTRPCRouter({
       .where(
         and(
           eq(connections.isAccepted, false),
-          eq(connections.connectedUserId, userId),
+          eq(connections.currentuserId, userId),
         ),
       )
       .innerJoin(users, eq(users.id, connections.currentuserId));
+  }),
+  checkConnections: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    const usersToConnect = await ctx.db
+      .select()
+      .from(connections)
+      .where(
+        and(
+          eq(connections.isAccepted, false),
+          or(
+            eq(connections.currentuserId, userId),
+            eq(connections.connectedUserId, userId),
+          ),
+        ),
+      )
+      .innerJoin(
+        users,
+        and(
+          not(eq(users.id, userId)),
+          or(
+            eq(users.id, connections.currentuserId),
+            eq(users.id, connections.connectedUserId),
+          ),
+        ),
+      );
+    return usersToConnect;
   }),
   acceptConnections: protectedProcedure
     .input(z.object({ cid: z.string() }))
@@ -460,6 +500,32 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input: { roomId, cursor, limit } }) => {
+      const userId = ctx.session.user.id;
+      if (typeof roomId !== typeof rooms.id.dataType) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Something went Wrong",
+        });
+      }
+      const [roomwithData] = await ctx.db
+        .select()
+        .from(rooms)
+        .where(eq(rooms.id, roomId));
+      if (!roomwithData) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "room not found" });
+      }
+      if (roomwithData) {
+        const [roomwithData] = await ctx.db
+          .select()
+          .from(roomMember)
+          .where(eq(roomMember.userId, userId));
+        if (!roomwithData) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "room not found",
+          });
+        }
+      }
       const chats = await ctx.db
         .select({
           message: messages,

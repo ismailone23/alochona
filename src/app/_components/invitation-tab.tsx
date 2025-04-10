@@ -2,8 +2,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/trpc/react";
+import dayjs from "dayjs";
+import { useSession } from "next-auth/react";
 import React from "react";
+import relativeTime from "dayjs/plugin/relativeTime";
 
+dayjs.extend(relativeTime);
 export default function InvitationTab() {
   const connections = api.chat.checkConnections.useQuery();
   const apictx = api.useContext();
@@ -46,7 +50,7 @@ export default function InvitationTab() {
   const handleConnectr = async (cid: string) => {
     removeConnection.mutate({ connectedUser: cid });
   };
-
+  const { data } = useSession();
   return (
     <div>
       {connections.isLoading ? (
@@ -56,7 +60,7 @@ export default function InvitationTab() {
       ) : !connections.data || connections.data.length < 1 ? (
         <p>no connection found</p>
       ) : (
-        connections.data.map(({ user }, i) => (
+        connections.data.map(({ connection, user }, i) => (
           <div
             key={i}
             className="flex w-full items-center justify-between gap-2 rounded p-2 hover:bg-gray-100"
@@ -69,22 +73,44 @@ export default function InvitationTab() {
               <div className="flex w-full flex-col items-start">
                 <p>{user.name}</p>
               </div>
-              <div className="grid w-full grid-cols-2 gap-2">
-                <Button
-                  size={"sm"}
-                  variant={"destructive"}
-                  onClick={() => handleConnectr(user.id)}
-                >
-                  remove
-                </Button>
-                <Button
-                  size={"sm"}
-                  variant={"outline"}
-                  onClick={() => handleConnect(user.id)}
-                >
-                  connect
-                </Button>
-              </div>
+              {data?.user.id === connection.currentuserId ? (
+                <div>
+                  <p className="text-sm">
+                    sent{" "}
+                    {dayjs(connection.createdAt, { locale: "en" }).fromNow()}
+                  </p>
+                  <Button
+                    size={"sm"}
+                    variant={"destructive"}
+                    onClick={() => handleConnectr(connection.connectedUserId)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex w-full flex-col">
+                  <p className="text-sm">
+                    received{" "}
+                    {dayjs(connection.createdAt, { locale: "en" }).fromNow()}
+                  </p>
+                  <div className="grid w-full grid-cols-2 gap-2">
+                    <Button
+                      size={"sm"}
+                      variant={"destructive"}
+                      onClick={() => handleConnectr(user.id)}
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      size={"sm"}
+                      variant={"outline"}
+                      onClick={() => handleConnect(user.id)}
+                    >
+                      Acceot
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))

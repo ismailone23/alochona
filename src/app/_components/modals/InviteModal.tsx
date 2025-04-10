@@ -92,6 +92,7 @@ const UserCard: React.FC<UserCardProps> = ({
   email,
   connectedUser,
 }) => {
+  const apictx = api.useContext();
   const addConnection = api.chat.sendConnection.useMutation({
     onMutate: () => {
       const toastId = toast.loading("Revoking invitation...");
@@ -103,7 +104,8 @@ const UserCard: React.FC<UserCardProps> = ({
         id: ctx?.toastId,
       });
     },
-    onSuccess: (_data, _var, ctx) => {
+    onSuccess: async (_data, _var, ctx) => {
+      await apictx.chat.checkConnections.invalidate();
       toast.success("connection request send", { id: ctx.toastId });
     },
   });
