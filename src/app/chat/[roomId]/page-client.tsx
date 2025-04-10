@@ -107,11 +107,10 @@ export default function PageClient() {
       if (prev.some((msg) => msg.message.id === newMessage.message.id)) {
         return prev;
       }
-      return [newMessage, ...prev]; // New messages appended to bottom
+      return [newMessage, ...prev];
     });
   };
 
-  // Socket connection and message handling
   useEffect(() => {
     if (!roomId || !socket) return;
     socket.connect();
